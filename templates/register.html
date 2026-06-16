@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Register - FaceAuth{% endblock %}
+{% block content %}
+<div class="container">
+    <h1>📸 Register Your Face</h1>
+    <p class="subtitle">Enter your username, then capture your face to enroll.</p>
+
+    <input type="text" id="username" placeholder="Enter username" />
+    <video id="video" autoplay playsinline></video>
+    <canvas id="canvas"></canvas>
+    <button id="captureBtn" disabled>📷 Capture & Register</button>
+
+    <div id="msg" class="msg"></div>
+    <div class="links"><a href="/login">Already registered? Login here</a></div>
+</div>
+
+<script>
+const video = document.getElementById("video");
+const canvas = document.getElementById("canvas");
+const captureBtn = document.getElementById("captureBtn");
+const msg = document.getElementById("msg");
+const usernameInput = document.getElementById("username");
+
+// Start webcam
+navigator.mediaDevices.getUserMedia({ video: true })
+    .then(stream => {
+        video.srcObject = stream;
+        captureBtn.disabled = false;
+    })
+    .catch(() => showMsg("Webcam access denied. Please allow camera permission.", "error"));
+
+usernameInput.addEventListener("input", () => {
+    captureBtn.disabled = usernameInput.value.trim() === "";
+});
+
+captureBtn.addEventListener("click", async () => {
+    const username = usernameInput.value.trim();
+    if (!username) return showMsg("Please enter a username.", "error");
+
+    // Capture frame from video
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext("2d").drawImage(video, 0, 0);
+    const imageData = canvas.toDataURL("image/jpeg");
+
+    captureBtn.disabled = true;
+    captureBtn.textContent = "Processing...";
+    showMsg("Detecting face and registering...", "info");
+
+    try {
+        const res = await fetch("/api/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, image: imageData })
+        });
+        const data = await res.json();
+        showMsg(data.message, data.success ? "success" : "error");
+        if (data.success) {
+            setTimeout(() => location.href = "/login", 2000);
+        }
+    } catch (e) {
+        showMsg("Server error. Is Flask running?", "error");
+    }
+
+    captureBtn.disabled = false;
+    captureBtn.textContent = "📷 Capture & Register";
+});
+
+function showMsg(text, type) {
+    msg.textContent = text;
+    msg.className = "msg " + type;
+}
+</script>
+{% endblock %}

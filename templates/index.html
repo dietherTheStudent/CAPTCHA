@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}FaceAuth - Home{% endblock %}
+{% block content %}
+<div class="container">
+    <h1>👁️ Face Scan Authentication</h1>
+    <p class="subtitle">Secure login using facial recognition powered by Python & OpenCV</p>
+    <button onclick="location.href='/register'">Register Your Face</button>
+    <button onclick="location.href='/login'" style="background:#2a2a4a; margin-top:10px;">Login with Face Scan</button>
+    <div class="links" style="margin-top:24px;">
+        <p>Built with Flask · OpenCV · face_recognition</p>
+    </div>
+</div>
+{% endblock %}

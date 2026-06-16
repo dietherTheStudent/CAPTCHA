@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Login - FaceAuth{% endblock %}
+{% block content %}
+<div class="container">
+    <h1>🔍 Face Scan Login</h1>
+    <p class="subtitle">Look at the camera, then click Scan to authenticate.</p>
+
+    <video id="video" autoplay playsinline></video>
+    <canvas id="canvas"></canvas>
+    <button id="scanBtn" disabled>🔎 Scan Face & Login</button>
+
+    <div id="msg" class="msg"></div>
+    <div class="links"><a href="/register">No account? Register here</a></div>
+</div>
+
+<script>
+const video = document.getElementById("video");
+const canvas = document.getElementById("canvas");
+const scanBtn = document.getElementById("scanBtn");
+const msg = document.getElementById("msg");
+
+navigator.mediaDevices.getUserMedia({ video: true })
+    .then(stream => {
+        video.srcObject = stream;
+        scanBtn.disabled = false;
+    })
+    .catch(() => showMsg("Webcam access denied.", "error"));
+
+scanBtn.addEventListener("click", async () => {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext("2d").drawImage(video, 0, 0);
+    const imageData = canvas.toDataURL("image/jpeg");
+
+    scanBtn.disabled = true;
+    scanBtn.textContent = "Scanning...";
+    showMsg("Analyzing face...", "info");
+
+    try {
+        const res = await fetch("/api/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ image: imageData })
+        });
+        const data = await res.json();
+        showMsg(
+            data.success
+                ? `${data.message} (Confidence: ${data.confidence}%)`
+                : data.message,
+            data.success ? "success" : "error"
+        );
+        if (data.success) {
+            setTimeout(() => location.href = "/dashboard", 1500);
+        }
+    } catch (e) {
+        showMsg("Server error. Is Flask running?", "error");
+    }
+
+    scanBtn.disabled = false;
+    scanBtn.textContent = "🔎 Scan Face & Login";
+});
+
+function showMsg(text, type) {
+    msg.textContent = text;
+    msg.className = "msg " + type;
+}
+</script>
+{% endblock %}
