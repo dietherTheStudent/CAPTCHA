@@ -34,10 +34,13 @@ def decode_image(data_url):
 def get_face_encoding(img):
     """Extract face encoding from image. Returns encoding or None."""
     rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    encodings = face_recognition.face_encodings(rgb)
+    locations = face_recognition.face_locations(rgb)
+    if len(locations) == 0:
+        return None
+    encodings = face_recognition.face_encodings(rgb, locations)
     if len(encodings) == 0:
         return None
-    return encodings[0]
+    return encodings[0], locations[0]
 
 @app.route("/")
 def index():
@@ -71,10 +74,12 @@ def api_register():
         return jsonify({"success": False, "message": "Username already exists."})
 
     img = decode_image(image_data)
-    encoding = get_face_encoding(img)
-
-    if encoding is None:
+    result = get_face_encoding(img)
+    if result is None:
         return jsonify({"success": False, "message": "No face detected. Please try again."})
+
+    encoding, location = result
+    top, right, bottom, left = location
 
     users[username] = {
         "encoding": encoding.tolist(),
@@ -82,7 +87,12 @@ def api_register():
     }
     save_users(users)
 
-    return jsonify({"success": True, "message": f"User '{username}' registered successfully!"})
+    return jsonify({
+        "success": True,
+        "message": f"User '{username}' registered successfully!",
+        "username": username,
+        "bbox": {"top": int(top), "right": int(right), "bottom": int(bottom), "left": int(left)}
+    })
 
 @app.route("/api/login", methods=["POST"])
 def api_login():
@@ -93,10 +103,13 @@ def api_login():
         return jsonify({"success": False, "message": "No image received."})
 
     img = decode_image(image_data)
-    unknown_encoding = get_face_encoding(img)
+    result = get_face_encoding(img)
 
-    if unknown_encoding is None:
+    if result is None:
         return jsonify({"success": False, "message": "No face detected. Please try again."})
+
+    unknown_encoding, location = result
+    top, right, bottom, left = location
 
     users = load_users()
     if not users:
@@ -114,10 +127,16 @@ def api_login():
                 "success": True,
                 "message": f"Welcome back, {username}!",
                 "username": username,
-                "confidence": confidence
+                "confidence": confidence,
+                "bbox": {"top": int(top), "right": int(right), "bottom": int(bottom), "left": int(left)}
             })
 
-    return jsonify({"success": False, "message": "Face not recognized. Access denied."})
+    # No match found - return bbox so client can show unknown face overlay
+    return jsonify({
+        "success": False,
+        "message": "Face not recognized. Access denied.",
+        "bbox": {"top": int(top), "right": int(right), "bottom": int(bottom), "left": int(left)}
+    })
 
 @app.route("/api/logout", methods=["POST"])
 def api_logout():

@@ -49,6 +49,10 @@ scanBtn.addEventListener("click", async () => {
                 : data.message,
             data.success ? "success" : "error"
         );
+        if (data && data.bbox) {
+            const label = data.success ? (data.username || 'User') + ` (${data.confidence}%)` : 'Unknown';
+            drawOverlay(data.bbox, label);
+        }
         if (data.success) {
             setTimeout(() => location.href = "/dashboard", 1500);
         }
@@ -63,6 +67,36 @@ scanBtn.addEventListener("click", async () => {
 function showMsg(text, type) {
     msg.textContent = text;
     msg.className = "msg " + type;
+}
+
+function drawOverlay(bbox, label) {
+    canvas.style.display = 'block';
+    const ctx = canvas.getContext('2d');
+
+    const top = bbox.top; const right = bbox.right; const bottom = bbox.bottom; const left = bbox.left;
+    const w = right - left; const h = bottom - top;
+
+    const tmp = document.createElement('canvas');
+    tmp.width = w; tmp.height = h;
+    const tctx = tmp.getContext('2d');
+    tctx.drawImage(canvas, left, top, w, h, 0, 0, w, h);
+
+    ctx.save();
+    ctx.filter = 'blur(8px)';
+    ctx.drawImage(tmp, left, top, w, h);
+    ctx.filter = 'none';
+    ctx.restore();
+
+    ctx.strokeStyle = '#39ff14';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(left + 2, top + 2, Math.max(1, w - 4), Math.max(1, h - 4));
+
+    ctx.font = 'bold 16px Arial';
+    const textWidth = ctx.measureText(label).width;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(left, Math.max(0, top - 28), textWidth + 14, 26);
+    ctx.fillStyle = '#39ff14';
+    ctx.fillText(label, left + 6, Math.max(0, top - 8));
 }
 </script>
 {% endblock %}
